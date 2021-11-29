@@ -17,7 +17,6 @@ from datetime import datetime
 from packaging import version
 
 data_dir = pathlib.PureWindowsPath('filepath')
-
 filenames = glob.glob(str(data_dir/'**/*.mid*'))
 sample_file = filenames[0]
 pm = pretty_midi.PrettyMIDI(sample_file)
@@ -201,8 +200,7 @@ for note in notelist:
                     new_q_matrix.insert(96, q)
                             
             q_matrizen.append(new_q_matrix)
-                        
-
+                       
 environment_matrix = q_matrizen[0]
 
 part_whole_environment = []
