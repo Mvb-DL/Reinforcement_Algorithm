@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 from packaging import version
 
-data_dir = pathlib.PureWindowsPath('C:\\Users\\mario\\OneDrive\\Desktop\\midifiles')
+data_dir = pathlib.PureWindowsPath('filepath')
 
 filenames = glob.glob(str(data_dir/'**/*.mid*'))
 sample_file = filenames[0]
