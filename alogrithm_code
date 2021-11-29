@@ -40,8 +40,7 @@ def add_arrays(listtype, arraytype, number):
     while index != number:
         listtype.append(arraytype)
         index+=1
-
-notelist = []
+        
 listindex = 0
 q_matrizen = []
 reward = 0
