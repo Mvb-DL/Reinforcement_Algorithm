@@ -15,10 +15,6 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import os
 from datetime import datetime
 from packaging import version
-import keras
-from tensorflow.keras import layers
-
-_SAMPLING_RATE = 16000
 
 data_dir = pathlib.PureWindowsPath('C:\\Users\\mario\\OneDrive\\Desktop\\midifiles')
 
@@ -38,9 +34,6 @@ for i, note in enumerate(instrument.notes[:(len(instrument.notes)-1)]):
     
 notelist = np.array(notelist)
     
-print(len(notelist))
-
-
 def add_arrays(listtype, arraytype, number):
                 
     index = 0
@@ -89,7 +82,6 @@ for note in notelist:
                      
             reshaped = np.reshape(new_arry, (-1, 1))
             
-        
             new_goal_index = np.append(reshaped[goal_index], 0)
             new_goal_index = [0,0]
             
@@ -110,8 +102,7 @@ for note in notelist:
             number = 29
             
             add_arrays(new_env, rest_index, number)
-            
-                
+                          
             new_env.insert(left_from_goal_index,new_left_from_goal_index)
             new_env.insert(goal_index, new_goal_index)
             new_env.insert(right_from_goal_index,new_right_from_goal_index)
