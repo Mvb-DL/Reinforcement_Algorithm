@@ -1,26 +1,17 @@
 import random
-import collections
-import datetime
 import glob
 import numpy as np
 import pathlib
-!pip install pandas
-import pandas as pd
 !pip install pretty_midi
 import pretty_midi
-!pip install tensorflow
-import tensorflow as tf
-from IPython import display
-from typing import Dict, List, Optional, Sequence, Tuple
 import os
-from datetime import datetime
-from packaging import version
 
-data_dir = pathlib.PureWindowsPath('filepath')
-filenames = glob.glob(str(data_dir/'**/*.mid*'))
-sample_file = filenames[0]
+data_dir = pathlib.PureWindowsPath('filepath') #hier wird der Pfad zum Midi-File eingegeben.
+
+filenames = glob.glob(str(data_dir/'**/*.mid*')) #und filtern, dass wir nur midi-datein erhalten.
+sample_file = filenames[0] # 1.Stück aus der Anzahl aller midi-files
 pm = pretty_midi.PrettyMIDI(sample_file)
-instrument = pm.instruments[0]
+instrument = pm.instruments[0] # Noten des 1. auftretendes Instruments im Stück 
 instrument_name = pretty_midi.program_to_instrument_name(instrument.program)
 
 notelist = []
@@ -31,193 +22,222 @@ for i, note in enumerate(instrument.notes[:(len(instrument.notes)-1)]):
   note = int(note.pitch)
   notelist.append(note)
     
-notelist = np.array(notelist)
-    
-def add_arrays(listtype, arraytype, number):
-                
-    index = 0
-    while index != number:
-        listtype.append(arraytype)
-        index+=1
-        
-listindex = 0
-q_matrizen = []
-reward = 0
-reward_list = []
+ #Als Ergebnis erhalten wir eine Liste welches aus allen Midi-Noten(Erklärung siehe Text) des ausgewählten Stücks besteht.
+ #Ein Array wäre zwar wesentlich effizienter, aber besitzt ein Array nicht ausreichend manipulationsmöglichkeiten, um hier verwendung zu finden
+ 
+ if 0 in notelist or 127 in notelist: #die beiden extremwerte 0 und 127 führen zu extremen verzerrungen, werden deshalb vorab entfernt
+    notelist.remove(0)
+    notelist.remove(127)
 
-for note in notelist:
-    
-    note = notelist[listindex]
-        
-    arrlist = []
-    arr = np.array(range(128))
-    i = 0
-    
-    while i < len(arr):
-        
-        arrlist.append(arr)
-        i+=1
-        
-    x = range(len(arrlist[0]))
-    
-    new_arr = np.array_split(x,4)
-    
-    length_arr = len(new_arr)
-    
-    length_list = list(range(length_arr))
-        
-    for y in length_list:
-        if note in new_arr[y]:
-            new_arry = new_arr[y]
-            
-            goal_index = np.searchsorted(new_arry, note)     
-            left_from_goal_index = goal_index-1
-            right_from_goal_index = goal_index+1
-    
-            newest_arr = np.array_split(new_arry,len(new_arry)) 
+if min(notelist) >= 0 and max(notelist) <= 127: #hier überprüfen wir, dass die Noten in der Notenliste dem richtigen Format (0-127) entsprechen.
+ 
+ listindex = 0 #wir beginnen beim Index 0 in der Notenliste, also der 1. Note.
+ q_matrizen = []
+ env = []
+ 
+ for note in notelist: #ab hier wird jede einzelne Note trainiert
+     
+     note = notelist[listindex]
+         
+     arrlist = []
+     arr = np.array(range(128)) #wir erstellen ein array mit 128 positionen, für jede potentielle note eine Position
+     i = 0
+     
+     while i < len(arr):
+         
+         arrlist.append(arr)
+         i+=1
+         
+     x = range(len(arrlist[0]))
+     
+     new_arr = np.array_split(x, 4) #unsere 128 positionen werden in 4 teile á 32 noten unterteilt
+     
+     length_arr = len(new_arr)
+     
+     length_list = list(range(length_arr))
+         
+     for y in length_list: #zur effizienz wird dem algorithmus rückgemeldet in welchem der 4 möglichen teile die gesuchte Note zu finden ist.
+         if note in new_arr[y]:
+             new_arry = new_arr[y]
              
-            newest_arr = np.array(newest_arr)
-                     
-            reshaped = np.reshape(new_arry, (-1, 1))
+             goal_index = np.searchsorted(new_arry, note)    #hier wird die eigentliche Zielnote definiert
+             left_from_goal_index = goal_index-1          #die note links von der zielnote
+             right_from_goal_index = goal_index+1         #und die note rechts der zielnote
+     
+             newest_arr = np.array_split(new_arry,len(new_arry)) 
+              
+             newest_arr = np.array(newest_arr)
+                  
+             reshaped = np.reshape(new_arry, (-1, 1))
+             
+             new_goal_index = np.append(reshaped[goal_index], 0)
+             new_goal_index = [0,0]
+             
+             if note == new_arr[y][0]:            
+                 new_left_from_goal_index = [0,0]           
+             else:
+                 new_left_from_goal_index = np.append(reshaped[left_from_goal_index], 0)
+                 new_left_from_goal_index = [0,100]
+             
+             if note == new_arr[y][-1]:
+                  new_left_from_goal_index = [0,0]   
+             else:
+                 new_right_from_goal_index = np.append(reshaped[right_from_goal_index], 0)
+                 new_right_from_goal_index = [100,0]
+                               
+             new_env = []
             
-            new_goal_index = np.append(reshaped[goal_index], 0)
-            new_goal_index = [0,0]
-            
-            if note == new_arr[y][0]:            
-                new_left_from_goal_index = [0,0]           
-            else:
-                new_left_from_goal_index = np.append(reshaped[left_from_goal_index], 0)
-                new_left_from_goal_index = [0,100]
-            
-            if note == new_arr[y][-1]:
-                 new_left_from_goal_index = [0,0]   
-            else:
-                new_right_from_goal_index = np.append(reshaped[right_from_goal_index], 0)
-                new_right_from_goal_index = [100,0]
-                              
-            new_env = []
-            rest_index = [0,0]
-            number = 29
-            
-            add_arrays(new_env, rest_index, number)
-                          
-            new_env.insert(left_from_goal_index,new_left_from_goal_index)
-            new_env.insert(goal_index, new_goal_index)
-            new_env.insert(right_from_goal_index,new_right_from_goal_index)
-                           
-            min_index = [-100,0]
-            new_env.insert(0,min_index)     
-            max_index = [0,-100]
-            new_env.insert(len(new_env),max_index)   
-            added_max_index = [0, None]
-            new_env.append(added_max_index)
-            added_min_index = [None, 0]
-            new_env.insert(0,added_min_index)
-                                   
-            environment_matrix = new_env
-            
-            if goal_index >= 33:
-                goal_index = goal_index -2
-            else:
-                goal_index = goal_index + 2
-                      
-            q_matrix = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
-           
-            win_loss_states = [0, goal_index, -1]
-            
-            def getAllPossibleNextAction(cur_pos):
-                step_matrix = [x != None for x in environment_matrix[cur_pos]]
-                action = []
-                if(step_matrix[0]):
-                    action.append(0)    
-                if(step_matrix[1]):
-                    action.append(1)
-                return(action)
-            def isGoalStateReached(cur_pos):
-                return (cur_pos in [goal_index])
-            def getNextState(cur_pos, action):
-                if (action == 0):
-                    return cur_pos - 1
-                else:
-                    return cur_pos + 1
-            def isGameOver(cur_pos):
-                return cur_pos in win_loss_states
-                   
-            discount = 0.9
-            learning_rate = 0.1
-            for _ in range(100):
-                
-                cur_pos = random.choice([2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33])
-                
-                while(not isGameOver(cur_pos)):
-                    
-                    possible_actions = getAllPossibleNextAction(cur_pos)
-                   
-                    action = random.choice(possible_actions)
-                    
-                    next_state = getNextState(cur_pos, action)
-                    
-                    q_matrix[cur_pos][action] = q_matrix[cur_pos][action] + learning_rate * (environment_matrix[cur_pos][action] + 
-                        discount * max(q_matrix[next_state]) - q_matrix[cur_pos][action])
-                   
-                    cur_pos = next_state
-                    
-            del q_matrix[0]
-            del q_matrix[1]
-            del q_matrix[-1]
-            del q_matrix[-2]
-            
-            q_matrix.reverse()
-            
-            new_q_matrix = []     
-            add_index = [-100,-100]
-            new_number = 96
-                
-            add_arrays(new_q_matrix, add_index, number)
-            
-            if y == 0:
-                
-                for q in q_matrix:
-                
-                    new_q_matrix.insert(0, q)
-            
-            elif y == 1:
-                
-                for q in q_matrix:
-                
-                    new_q_matrix.insert(32, q)
-            
-            elif y == 2:
-                
-                for q in q_matrix:
-                
-                    new_q_matrix.insert(64, q)
-                
-            else:
-                
-                for q in q_matrix:
-                
-                    new_q_matrix.insert(96, q)
+             rest_index = [0,0]
+             index = 0
+             while index != 29:
+                 new_env.append(rest_index)
+                 index+=1
+                 
+             new_env.insert(left_from_goal_index,new_left_from_goal_index)
+             new_env.insert(goal_index, new_goal_index)
+             new_env.insert(right_from_goal_index,new_right_from_goal_index)
                             
-            q_matrizen.append(new_q_matrix)
+             min_index = [-100,0]
+             new_env.insert(0,min_index)     
+             max_index = [0,-100]
+             new_env.insert(len(new_env),max_index)   
+             added_max_index = [0, None]
+             new_env.append(added_max_index)
+             added_min_index = [None, 0]
+             new_env.insert(0,added_min_index)
+                                    
+             environment_matrix = new_env
+             
+             if goal_index >= 33:
+                 goal_index = goal_index -2
+             else:
+                 goal_index = goal_index + 2
                        
-environment_matrix = q_matrizen[0]
+             q_matrix = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
+             
+             win_loss_states = [0, goal_index, -1] # Hier beginnt das eingentliche Training 
+             
+             def getAllPossibleNextAction(cur_pos):
+                 step_matrix = [x != None for x in environment_matrix[cur_pos]]
+                 action = []
+                 if(step_matrix[0]):
+                     action.append(0)    
+                 if(step_matrix[1]):
+                     action.append(1)
+                 return(action)
+             
+             def isGoalStateReached(cur_pos):
+                 return (cur_pos in [goal_index])
+             
+             def getNextState(cur_pos, action):
+                 if (action == 0):
+                     return cur_pos - 1
+                 else:
+                     return cur_pos + 1
+             def isGameOver(cur_pos):
+                 return cur_pos in win_loss_states
+                    
+             discount = 0.9
+             learning_rate = 0.1
+             length = 1000          # Umso höher umso exakter das Training
+             for _ in range(length):
+                 
+                 cur_pos = random.choice(list(range(32)))
+                 
+                 while(not isGameOver(cur_pos)):
+                     
+                     possible_actions = getAllPossibleNextAction(cur_pos)
+                    
+                     action = random.choice(possible_actions)
+                     
+                     next_state = getNextState(cur_pos, action)
+                     
+                     q_matrix[cur_pos][action] = q_matrix[cur_pos][action] + learning_rate * (environment_matrix[cur_pos][action] + 
+                         discount * max(q_matrix[next_state]) - q_matrix[cur_pos][action])
+                    
+                     cur_pos = next_state
+                     
+             del q_matrix[0]
+             del q_matrix[1]
+             del q_matrix[-1]
+             del q_matrix[-2]
+             
+             q_matrix.reverse()
+             
+             new_q_matrix = []
+ 
+             add_index = [-100, -100]
+             
+             new_index = 0
+                   
+             while new_index != 96:           # hier werden noch die restlichen 96 array-objekte hinzugefügt
+                  
+                 new_q_matrix.append(add_index)
+                 new_index += 1
+                              
+             if y == 0:
+                 
+                 for q in q_matrix:
+                 
+                     new_q_matrix.insert(0, q)
+             
+             elif y == 1:
+                 
+                 for q in q_matrix:
+                 
+                     new_q_matrix.insert(32, q)
+             
+             elif y == 2:
+                 
+                 for q in q_matrix:
+                 
+                     new_q_matrix.insert(64, q)
+                 
+             else:
+                 
+                 for q in q_matrix:
+                 
+                     new_q_matrix.insert(96, q)
+                                       
+             q_matrizen.append(new_q_matrix)
+             
+             listindex += 1
+             
+ up_listindex = list(range(listindex))
+ 
+ reward = 0
+ 
+ trained_notelist = []
+ checklist = []
+ 
+ for index in up_listindex:          #Überprüfung, ob Output = Input
+             
+     environment_matrix = q_matrizen[index]
+     env.append(environment_matrix)
+     index_goal = env[index].index([0,0])
+     
+     if index_goal == notelist[index] and int(sum(env[index][index_goal])) == 0:
+         
+         reward += 1
+         trained_notelist.append(index_goal)
+         checklist.append(True)
+          
+     else:
 
-part_whole_environment = []
-whole_environment = []
-env_add_index = [0,0]
-env_new_index = 0
-whole_index = 0
-            
-while env_new_index != 128:           
-        part_whole_environment.append(env_add_index)
-        env_new_index+=1
-        
-while whole_index < len(notelist):      
-    whole_environment.append(part_whole_environment)
-    whole_index += 1
-
-q_matrix = whole_environment[0]
-
-print(environment_matrix)
-print(q_matrix)
+         reward -= 1
+         checklist.append(False)
+                 
+ if reward - listindex != 0:
+     
+     print("error at pos:", checklist.index(False))
+     print("length to low:",length)
+         
+ else:
+     
+     if trained_notelist == notelist:
+         
+         print("trained:", trained_notelist)
+         print("original:", notelist)
+else:
+    
+    print("notelist false values")
